@@ -23,7 +23,7 @@
 from jotfiles.model import CalendarEvent, Task
 
 
-class PersonalSpace:
+class PersonalBoard:
     def upsert_task_card(self, task: Task):
         pass
 

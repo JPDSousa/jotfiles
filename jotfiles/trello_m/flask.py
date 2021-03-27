@@ -31,11 +31,11 @@ blueprint = Blueprint("trello", __name__, url_prefix="/trello")
 @blueprint.route("/task", methods=["PUT"])
 def upsert_task_card():
 
-    from jotfiles.trello_m import TrelloPersonalSpace, load_from_file
+    from jotfiles.trello_m import TrelloPersonalBoard, load_from_file
 
     if request.method == "PUT":
         task: Task = request.args.get("task")
         config = load_from_file()
         jotfiles.jira_m.logger.info("Upserting task %s", task)
-        client = TrelloPersonalSpace(config)
+        client = TrelloPersonalBoard(config)
         client.upsert_task_card(task)

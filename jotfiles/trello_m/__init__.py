@@ -28,7 +28,7 @@ from typing import List
 
 from trello import Card, Label, TrelloClient
 
-from jotfiles.components import PersonalSpace
+from jotfiles.components import PersonalBoard
 from jotfiles.dates.formats import iso_8601
 from jotfiles.model import CalendarEvent, Task
 
@@ -51,7 +51,7 @@ def load_from_file(file: Path = default_path) -> Config:
         )
 
 
-class TrelloPersonalSpace(PersonalSpace):
+class TrelloPersonalBoard(PersonalBoard):
     def __init__(self, config: Config):
         self.client = TrelloClient(
             api_key=config.api_key,

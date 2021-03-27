@@ -6,9 +6,8 @@ from dataclasses import dataclass
 
 from flask import Flask
 
+from jotfiles.jira_m.flask import blueprint as jira_bp
 from jotfiles.trello_m.flask import blueprint as trello_bp
-
-from .jira_m.flask import blueprint as jira_bp
 
 
 @dataclass

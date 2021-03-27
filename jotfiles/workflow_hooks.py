@@ -22,7 +22,7 @@
 
 import logging
 
-from jotfiles.components import PersonalSpace, Workflow
+from jotfiles.components import PersonalBoard, Workflow
 from jotfiles.scrum import ScrumBoard
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 # TODO change name
 class LocalWorkflow(Workflow):
-    def __init__(self, board: ScrumBoard, p_space: PersonalSpace):
+    def __init__(self, board: ScrumBoard, p_space: PersonalBoard):
         self.board = board
         self.p_space = p_space
 

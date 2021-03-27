@@ -27,12 +27,12 @@ from pathlib import Path
 import schedule
 from workflow_hooks import LocalWorkflow
 
-from jotfiles.components import PersonalSpace
-from jotfiles.jira_m.jira_hooks import JiraScrumBoard
-from jotfiles.jira_m.jira_hooks import load_from_file as load_jira_from_file
+from jotfiles.components import PersonalBoard
+from jotfiles.jira_m import JiraScrumBoard
+from jotfiles.jira_m import load_from_file as load_jira_from_file
 from jotfiles.scrum import ScrumBoard
-from jotfiles.trello_m.trello_hooks import TrelloPersonalSpace
-from jotfiles.trello_m.trello_hooks import load_from_file as load_trello_from_file
+from jotfiles.trello_m import TrelloPersonalBoard
+from jotfiles.trello_m import load_from_file as load_trello_from_file
 
 
 @dataclass
@@ -44,11 +44,11 @@ class Config:
     base_path: Path
 
 
-def load_personal_space(config: Config) -> PersonalSpace:
+def load_personal_space(config: Config) -> PersonalBoard:
     if config.personal_board == "trello":
         config_path = config.base_path / "credentials_trello.json"
         trello_config = load_trello_from_file(config_path)
-        return TrelloPersonalSpace(trello_config)
+        return TrelloPersonalBoard(trello_config)
     else:
         raise ValueError(f"Unknown personal space type {config.personal_board}")
 
@@ -69,6 +69,7 @@ def bootstrap_poller(config: Config):
 
     workflow = LocalWorkflow(scrum_board, personal_board)
 
+    # this should be dynamic / decoupled
     schedule.every().hour.do(workflow.update_sprint_issues)
     schedule.every().hour.do(personal_board.update_done)
 
