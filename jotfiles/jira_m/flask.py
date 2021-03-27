@@ -19,18 +19,16 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
-from datetime import datetime, timedelta
 
-from furl import furl
-from jira import Issue
-from model import Task
+from flask import Blueprint
+
+from jotfiles.jira_m.jira_hooks import JiraScrumBoard, load_from_file
+from jotfiles.scrum import Sprint
+
+blueprint = Blueprint("jira", __name__, url_prefix="/jira")
 
 
-def create_task(issue: Issue, server_url: furl, due_date: datetime):
-    return Task(
-        issue.key,
-        issue.fields.summary,
-        timedelta(seconds=issue.fields.aggregatetimeestimate),
-        due_date,
-        server_url / "browse" / issue.key,
-    )
+@blueprint.route("/sprint")
+def current_sprint() -> Sprint:
+    config = load_from_file()
+    return JiraScrumBoard(config).current_sprint()

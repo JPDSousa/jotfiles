@@ -20,19 +20,22 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 
-from flask import Blueprint, current_app, request
+from dataclasses import dataclass
+from datetime import datetime
+from typing import List, Optional
 
 from jotfiles.model import Task
-from jotfiles.trello.trello_hooks import TrelloProxy, load_from_file
-
-blueprint = Blueprint("trello", __name__, url_prefix="/trello")
 
 
-@blueprint.route("/task", methods=["PUT"])
-def upsert_task_card():
-    if request.method == "PUT":
-        task: Task = request.args.get("task")
-        config = load_from_file()
-        current_app.logger.info("Upserting task %s", task)
-        client = TrelloProxy(config)
-        client.upsert_task_card(task)
+@dataclass
+class Sprint:
+    id: str
+    end_date: datetime
+
+
+class ScrumBoard:
+    def current_sprint(self) -> Sprint:
+        pass
+
+    def current_sprint_tasks(self, assignee: Optional[str] = None) -> List[Task]:
+        pass

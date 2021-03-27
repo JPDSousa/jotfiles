@@ -23,15 +23,16 @@
 import json
 import logging
 from dataclasses import dataclass
-from logging import DEBUG
+from pathlib import Path
 from typing import List
 
 from trello import Card, Label, TrelloClient
 
+from jotfiles.components import PersonalSpace
 from jotfiles.dates.formats import iso_8601
 from jotfiles.model import CalendarEvent, Task
 
-logging.basicConfig(level=DEBUG)
+default_path = Path("credentials_trello.json")
 logger = logging.getLogger(__name__)
 
 
@@ -42,15 +43,15 @@ class Config:
     board_id: str
 
 
-def load_from_file() -> Config:
-    with open("credentials_trello.json") as f:
+def load_from_file(file: Path = default_path) -> Config:
+    with file.open() as f:
         credentials = json.load(f)
         return Config(
             credentials["api_key"], credentials["token"], credentials["board_id"]
         )
 
 
-class TrelloProxy:
+class TrelloPersonalSpace(PersonalSpace):
     def __init__(self, config: Config):
         self.client = TrelloClient(
             api_key=config.api_key,
@@ -108,7 +109,7 @@ class TrelloProxy:
             pass
 
     def _update_card(self, card: Card, task: Task):
-        # _update_remaining(issue, card)
+        self._update_remaining(task, card)
         card.attach("Task URL", url=task.url)
 
     def _update_remaining(self, task: Task, card: Card):
@@ -116,17 +117,14 @@ class TrelloProxy:
         remaining_sec = task.remaining.total_seconds() / 3600
         card.set_custom_field(remaining_sec, self.custom_fields["Time (h)"])
 
-    def validate(self):
-        self._validate_done()
-
-    def _validate_done(self):
-        logger.info("Validating done cards")
+    def update_done(self):
+        logger.info("Fetching done cards")
         done_list = self.board.get_list(self.trello_lists["Done"])
         for card in done_list.list_cards():
             if card.due_date:
                 logger.debug("Setting card %s due complete", card.name)
                 card.set_due_complete()
-        logger.info("Validation complete")
+        logger.info("Update complete")
 
     def _label(self, name: str) -> Label:
         return next(label for label in self.labels if label.name == name)
