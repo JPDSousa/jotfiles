@@ -22,7 +22,7 @@
 
 from flask import Blueprint
 
-from jotfiles.jira_m.jira_hooks import JiraScrumBoard, load_from_file
+from jotfiles.jira_m import JiraScrumBoard, load_from_file
 from jotfiles.scrum import Sprint
 
 blueprint = Blueprint("jira", __name__, url_prefix="/jira")

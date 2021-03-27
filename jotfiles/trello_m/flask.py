@@ -20,8 +20,9 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 
-from flask import Blueprint, current_app, request
+from flask import Blueprint, request
 
+import jotfiles.jira_m
 from jotfiles.model import Task
 
 blueprint = Blueprint("trello", __name__, url_prefix="/trello")
@@ -30,11 +31,11 @@ blueprint = Blueprint("trello", __name__, url_prefix="/trello")
 @blueprint.route("/task", methods=["PUT"])
 def upsert_task_card():
 
-    from jotfiles.trello_m.trello_hooks import TrelloPersonalSpace, load_from_file
+    from jotfiles.trello_m import TrelloPersonalSpace, load_from_file
 
     if request.method == "PUT":
         task: Task = request.args.get("task")
         config = load_from_file()
-        current_app.logger.info("Upserting task %s", task)
+        jotfiles.jira_m.logger.info("Upserting task %s", task)
         client = TrelloPersonalSpace(config)
         client.upsert_task_card(task)
