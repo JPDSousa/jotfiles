@@ -20,39 +20,28 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 
-import logging
+from dataclasses import dataclass
 from datetime import datetime
-
-from jotfiles.components import PersonalBoard, Workflow
-from jotfiles.comunication import Chat, ScheduledMessagesPool
-from jotfiles.scrum import ScrumBoard
-
-logger = logging.getLogger(__name__)
+from typing import List, Optional
 
 
-# TODO change name
-class LocalWorkflow(Workflow):
-    def __init__(
-        self,
-        board: ScrumBoard,
-        p_space: PersonalBoard,
-        smpool: ScheduledMessagesPool,
-        chat: Chat,
-    ):
+@dataclass
+class Message:
+    content: str
+    recipient: str
+    thread: Optional[str]
 
-        self.board = board
-        self.p_space = p_space
-        self.smpool = smpool
-        self.chat = chat
 
-    def update_sprint_issues(self):
-        for task in self.board.current_sprint_tasks():
-            logger.info("Upserting sprint task {}", task.id)
-            self.p_space.upsert_task_card(task)
+@dataclass
+class ScheduledMessage(Message):
+    schedule: datetime
 
-    def send_scheduled_messages(self):
-        now = datetime.now()
-        for message in self.smpool.list_messages():
-            if message.schedule < now:
-                logger.info("Sending message to %s at %s", message.recipient, now)
-                self.chat.send_message(message)
+
+class ScheduledMessagesPool:
+    def list_messages(self) -> List[ScheduledMessage]:
+        pass
+
+
+class Chat:
+    def send_message(self, message: Message):
+        pass

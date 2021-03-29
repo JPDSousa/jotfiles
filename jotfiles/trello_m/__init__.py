@@ -29,6 +29,7 @@ from typing import List
 from trello import Card, Label, TrelloClient
 
 from jotfiles.components import PersonalBoard
+from jotfiles.comunication import ScheduledMessage, ScheduledMessagesPool
 from jotfiles.dates.formats import iso_8601
 from jotfiles.model import CalendarEvent, Task
 
@@ -42,6 +43,9 @@ class Config:
     token: str
     board_id: str
 
+    def create_client(self) -> TrelloClient:
+        return TrelloClient(api_key=self.api_key, token=self.token)
+
 
 def load_from_file(file: Path = default_path) -> Config:
     with file.open() as f:
@@ -51,13 +55,23 @@ def load_from_file(file: Path = default_path) -> Config:
         )
 
 
+class TrelloScheduledMessagesPool(ScheduledMessagesPool):
+    def __init__(self, client: TrelloClient):
+        self.client = client
+
+    def list_messages(self) -> List[ScheduledMessage]:
+        query = "comment:send message is:open"
+        messages = []
+        for card in self.client.search(query, models=["cards"]):
+            card: Card = card
+            messages.append(*card.comments)
+        return messages
+
+
 class TrelloPersonalBoard(PersonalBoard):
-    def __init__(self, config: Config):
-        self.client = TrelloClient(
-            api_key=config.api_key,
-            token=config.token,
-        )
-        self.board = self.client.get_board(config.board_id)
+    def __init__(self, client: TrelloClient, board_id: str):
+        self.client = client
+        self.board = self.client.get_board(board_id)
         # name to id map
         self.trello_lists = {tl.name: tl.id for tl in self.board.all_lists()}
         # cache labels
@@ -77,7 +91,8 @@ class TrelloPersonalBoard(PersonalBoard):
 
     def upsert_task_card(self, task: Task):
         key = task.id
-        cards2update = self._search_open_cards(key)
+        task_comment = f"task_id_{key}"
+        cards2update = self._search_open_cards(f"comment:{task_comment}")
         if len(cards2update) > 1:
             logger.warning(
                 "Multiple cards exist for task %s. Consider breaking the "
@@ -93,6 +108,7 @@ class TrelloPersonalBoard(PersonalBoard):
             card = backlog.add_card(task.title, position=0, labels=ls, due=due)
             logger.debug("Setting custom task field")
             card.set_custom_field(key, self.custom_fields["Task"])
+            card.comment(task_comment)
             cards2update = [card]
         for card in cards2update:
             logger.debug("Syncing card %s with task %s", card.name, key)
@@ -110,11 +126,11 @@ class TrelloPersonalBoard(PersonalBoard):
 
     def _update_card(self, card: Card, task: Task):
         self._update_remaining(task, card)
-        card.attach("Task URL", url=task.url)
+        card.attach("Task URL", url=str(task.url))
 
     def _update_remaining(self, task: Task, card: Card):
         logger.debug("Setting custom remaining field")
-        remaining_sec = task.remaining.total_seconds() / 3600
+        remaining_sec = str(task.remaining.total_seconds() / 3600)
         card.set_custom_field(remaining_sec, self.custom_fields["Time (h)"])
 
     def update_done(self):
@@ -128,3 +144,6 @@ class TrelloPersonalBoard(PersonalBoard):
 
     def _label(self, name: str) -> Label:
         return next(label for label in self.labels if label.name == name)
+
+    def _bot_comment(self, message: str) -> str:
+        return f"BOT {message}"

@@ -37,5 +37,5 @@ def upsert_task_card():
         task: Task = request.args.get("task")
         config = load_from_file()
         jotfiles.jira_m.logger.info("Upserting task %s", task)
-        client = TrelloPersonalBoard(config)
+        client = TrelloPersonalBoard(config.create_client(), config.board_id)
         client.upsert_task_card(task)

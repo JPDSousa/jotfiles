@@ -20,58 +20,42 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 
+import logging
 import time
-from dataclasses import dataclass
 from pathlib import Path
 
 import schedule
-from workflow_hooks import LocalWorkflow
+from pydantic import BaseSettings
 
-from jotfiles.components import PersonalBoard
-from jotfiles.jira_m import JiraScrumBoard
-from jotfiles.jira_m import load_from_file as load_jira_from_file
-from jotfiles.scrum import ScrumBoard
-from jotfiles.trello_m import TrelloPersonalBoard
-from jotfiles.trello_m import load_from_file as load_trello_from_file
+from jotfiles.container import Container
+
+logger = logging.getLogger(__name__)
 
 
-@dataclass
-class Config:
-    # TODO use enums
-    personal_board: str
-    scrum_board: str
-    workflow_mode: str
-    base_path: Path
+class Config(BaseSettings):
+    personal_board: str = "trello"
+    scrum_board: str = "jira"
+    chat: str = "gchat"
+    smpool: str = "trello"
+    workflow_mode: str = "local"
+    base_path: Path = Path().absolute().parent
+    trello_credentials: Path = base_path / "credentials_trello.json"
+    jira_credentials: Path = base_path / "credentials_jira.json"
 
 
-def load_personal_space(config: Config) -> PersonalBoard:
-    if config.personal_board == "trello":
-        config_path = config.base_path / "credentials_trello.json"
-        trello_config = load_trello_from_file(config_path)
-        return TrelloPersonalBoard(trello_config)
-    else:
-        raise ValueError(f"Unknown personal space type {config.personal_board}")
+def bootstrap_poller():
 
+    container = Container()
+    container.config.from_pydantic(Config())
 
-def load_scrum_board(config: Config) -> ScrumBoard:
-    if config.scrum_board == "jira":
-        config_path = config.base_path / "credentials_jira.json"
-        jira_config = load_jira_from_file(config_path)
-        return JiraScrumBoard(jira_config)
-    else:
-        raise ValueError(f"Unknown scrum board type {config.scrum_board}")
+    workflow = container.workflow()
+    personal_board = container.personal_board()
 
-
-def bootstrap_poller(config: Config):
-
-    scrum_board = load_scrum_board(config)
-    personal_board = load_personal_space(config)
-
-    workflow = LocalWorkflow(scrum_board, personal_board)
-
+    logger.info("Scheduling actions")
     # this should be dynamic / decoupled
     schedule.every().hour.do(workflow.update_sprint_issues)
     schedule.every().hour.do(personal_board.update_done)
+    logger.info("All actions scheduled")
 
     while True:
         schedule.run_pending()
@@ -79,5 +63,4 @@ def bootstrap_poller(config: Config):
 
 
 if __name__ == "__main__":
-    config = Config("trello", "jira", "local", Path().absolute().parent)
-    bootstrap_poller(config)
+    bootstrap_poller()

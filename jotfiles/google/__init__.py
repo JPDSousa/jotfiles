@@ -19,3 +19,40 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
+
+import json
+import logging
+from typing import Any, Dict
+
+import requests
+from furl import furl
+
+from jotfiles.comunication import Chat, Message
+
+logger = logging.getLogger(__name__)
+
+
+class GChat(Chat):
+    def __init__(self, recipients: Dict[str, furl]):
+        self.recipients = recipients
+
+    def send_message(self, message: Message):
+        recipient = message.recipient
+        if recipient not in self.recipients:
+            raise ValueError(
+                f"Unknown recipient {recipient}. Available: "
+                f"{self.recipients.keys()}"
+            )
+        webhook = self.recipients[recipient]
+        self._send_message({"text": message.content}, message.thread, webhook)
+
+    def _send_message(self, message: Any, thread_key: str, webhook: furl):
+        logger.debug("Sending message: %s", message)
+        query = {"threadKey": thread_key}
+        r = requests.post(
+            str(webhook),
+            params=query,
+            data=json.dumps(message),
+            headers={"Content-Type": "application/json; charset=UTF-8"},
+        )
+        logger.debug("Message sent: %s", r.text)

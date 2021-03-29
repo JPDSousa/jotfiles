@@ -38,3 +38,6 @@ class PersonalBoard:
 class Workflow:
     def update_sprint_issues(self):
         pass
+
+    def send_scheduled_messages(self):
+        pass

@@ -35,6 +35,7 @@ from jotfiles.scrum import ScrumBoard, Sprint
 
 logger = logging.getLogger(__name__)
 default_path = Path("credentials_jira.json")
+date_format = "%d/%b/%y %I:%M %p"
 
 
 @dataclass
@@ -52,7 +53,7 @@ def load_from_file(file: Path = default_path) -> Config:
             credentials["owner"],
             credentials["pass"],
             credentials["board"],
-            credentials["server"],
+            furl(credentials["server"]),
         )
 
 
@@ -69,7 +70,7 @@ class JiraScrumBoard(ScrumBoard):
     def __init__(self, config: Config):
         self.server_url = config.server_url
         self.owner = config.owner
-        self.server = JIRA(self.server_url, auth=(self.owner, config.password))
+        self.server = JIRA(str(self.server_url), auth=(self.owner, config.password))
         self.board = config.board
 
     def create_task(self, issue: Issue, due_date: datetime):
@@ -86,7 +87,8 @@ class JiraScrumBoard(ScrumBoard):
         logger.debug("Searching for an active sprint in %s sprints", len(sprints))
         summary = next(sprint for sprint in sprints if sprint.state == "ACTIVE")
         jira_sprint = self.server.sprint_info(self.board, summary.id)
-        return Sprint(jira_sprint["id"], jira_sprint["endDate"])
+        end_date = datetime.strptime(jira_sprint["endDate"], date_format)
+        return Sprint(jira_sprint["id"], end_date)
 
     def current_sprint_tasks(self, assignee: Optional[str] = None) -> List[Task]:
         assignee = assignee or self.owner
