@@ -38,3 +38,6 @@ class Task:
 @dataclass
 class CalendarEvent:
     id: str
+    name: str
+    start: datetime
+    duration: timedelta

@@ -22,14 +22,30 @@
 
 import json
 import logging
-from typing import Any, Dict
+import os.path
+import pickle
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
 
 import requests
 from furl import furl
+from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
 
+from jotfiles.components import Calendar
 from jotfiles.comunication import Chat, Message
+from jotfiles.model import CalendarEvent
 
 logger = logging.getLogger(__name__)
+
+
+# If modifying these scopes, delete the file token.pickle.
+SCOPES = [
+    "https://www.googleapis.com/auth/documents.readonly",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/calendar.readonly",
+]
 
 
 class GChat(Chat):
@@ -56,3 +72,70 @@ class GChat(Chat):
             headers={"Content-Type": "application/json; charset=UTF-8"},
         )
         logger.debug("Message sent: %s", r.text)
+
+
+class GoogleCalendar(Calendar):
+    def __init__(self, email):
+        self.email = email
+
+        self.creds = None
+        # The file token.pickle stores the user's access and refresh tokens, and is
+        # created automatically when the authorization flow completes for the first
+        # time.
+        if os.path.exists("token.pickle"):
+            with open("token.pickle", "rb") as token:
+                self.creds = pickle.load(token)
+        # If there are no (valid) credentials available, let the user log in.
+        if not self.creds or not self.creds.valid:
+            if self.creds and self.creds.expired and self.creds.refresh_token:
+                self.creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    "credentials.json", SCOPES
+                )
+                self.creds = flow.run_local_server(port=6497)
+            # Save the credentials for the next run
+            with open("token.pickle", "wb") as token:
+                pickle.dump(self.creds, token)
+
+        self.docs_service = build("docs", "v1", credentials=self.creds)
+        self.calendar_service = build("calendar", "v3", credentials=self.creds)
+
+    # TODO add list type
+    def list_calendars(self) -> List:
+        events_result = self.calendar_service.calendarList().list().execute()
+        return events_result.get("items", [])
+
+    def list_week_events(self) -> List[CalendarEvent]:
+        # Call the Calendar API
+        now = datetime.utcnow().isoformat() + "Z"  # 'Z' indicates UTC time
+        timeMax = (datetime.utcnow() + timedelta(days=7)).isoformat() + "Z"
+        print("Getting the upcoming 10 events")
+        events_result = (
+            self.calendar_service.events()
+            .list(
+                calendarId=self.email,
+                timeMin=now,
+                timeMax=timeMax,
+                maxAttendees=10,
+                singleEvents=True,
+                orderBy="startTime",
+            )
+            .execute()
+        )
+        attended_events = []
+        for event in events_result.get("items", []):
+            for attendee in event["attendees"]:
+                if (
+                    attendee["email"] == self.email
+                    and attendee["responseStatus"] == "accepted"
+                ):
+                    # TODO fix type
+                    attended_events.append(event)
+                    break
+        return attended_events
+        # if not events:
+        #     print('No upcoming events found.')
+        # for event in events:
+        #     start = event['start'].get('dateTime', event['start'].get('date'))
+        #     print(start, event['summary'])

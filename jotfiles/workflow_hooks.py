@@ -23,7 +23,7 @@
 import logging
 from datetime import datetime
 
-from jotfiles.components import PersonalBoard, Workflow
+from jotfiles.components import Calendar, PersonalBoard, Workflow
 from jotfiles.comunication import Chat, ScheduledMessagesPool
 from jotfiles.scrum import ScrumBoard
 
@@ -38,12 +38,14 @@ class LocalWorkflow(Workflow):
         p_space: PersonalBoard,
         smpool: ScheduledMessagesPool,
         chat: Chat,
+        calendar: Calendar,
     ):
 
         self.board = board
         self.p_space = p_space
         self.smpool = smpool
         self.chat = chat
+        self.calendar = calendar
 
     def update_sprint_issues(self):
         for task in self.board.current_sprint_tasks():
@@ -56,3 +58,8 @@ class LocalWorkflow(Workflow):
             if message.schedule < now:
                 logger.info("Sending message to %s at %s", message.recipient, now)
                 self.chat.send_message(message)
+
+    def update_events(self):
+        for event in self.calendar.list_week_events():
+            logger.info("Upserting calendar event {}", event["summary"])
+            self.p_space.upsert_calendar_card(event)

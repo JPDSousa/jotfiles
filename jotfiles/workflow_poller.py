@@ -1,3 +1,4 @@
+# .venv/bin/python3
 #  MIT License
 #
 #  Copyright (c) 2021 João Sousa
@@ -38,7 +39,7 @@ class Config(BaseSettings):
     chat: str = "gchat"
     smpool: str = "trello"
     workflow_mode: str = "local"
-    base_path: Path = Path().absolute().parent
+    base_path: Path = Path()
     trello_credentials: Path = base_path / "credentials_trello.json"
     jira_credentials: Path = base_path / "credentials_jira.json"
 

@@ -26,7 +26,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-from trello import Card, Label, TrelloClient
+from trello import Card, Label
+from trello import List as TList
+from trello import TrelloClient
 
 from jotfiles.components import PersonalBoard
 from jotfiles.comunication import ScheduledMessage, ScheduledMessagesPool
@@ -68,6 +70,10 @@ class TrelloScheduledMessagesPool(ScheduledMessagesPool):
         return messages
 
 
+def _bot_comment(message: str) -> str:
+    return f"BOT {message}"
+
+
 class TrelloPersonalBoard(PersonalBoard):
     def __init__(self, client: TrelloClient, board_id: str):
         self.client = client
@@ -100,8 +106,7 @@ class TrelloPersonalBoard(PersonalBoard):
                 key,
             )
         elif len(cards2update) == 0:
-            logger.debug("Fetching backlog list")
-            backlog = self.board.get_list(self.trello_lists["[Backlog] On Hold"])
+            backlog = self._backlog()
             logger.debug("Adding card to the list")
             ls = [self._label("task:sprint")]
             due = task.due_date.strftime(iso_8601)
@@ -112,21 +117,39 @@ class TrelloPersonalBoard(PersonalBoard):
             cards2update = [card]
         for card in cards2update:
             logger.debug("Syncing card %s with task %s", card.name, key)
-            self._update_card(card, task)
+            self._update_task_card(card, task)
+
+    def _update_task_card(self, card: Card, task: Task):
+        self._update_remaining(task, card)
+        url_str = str(task.url)
+        task_attachments = [att for att in card.attachments if att.url == url_str]
+        for att in task_attachments:
+            logger.debug("Removing attachment %s", att.name)
+            card.remove_attachment(att.id)
+        card.attach("Task URL", url=url_str)
 
     def upsert_calendar_card(self, event: CalendarEvent):
         event_id = event.id
         cards2update = self._search_open_cards(event_id)
         if len(cards2update) > 1:
+            # TODO Instead of generating an exception, simply create a card to fix
+            #  the other cards
             raise ValueError(
                 f"Multiple cards associated with the same event {cards2update}"
             )
         elif len(cards2update) == 0:
-            pass
+            backlog = self._backlog()
+            logger.debug("Adding card to the list")
+            card = backlog.add_card(event.name, source=self._template("Meeting"))
+            cards2update = [card]
+        for card in cards2update:
+            self._update_calendar_card(card, event)
 
-    def _update_card(self, card: Card, task: Task):
-        self._update_remaining(task, card)
-        card.attach("Task URL", url=str(task.url))
+    def _update_calendar_card(self, card: Card, event: CalendarEvent):
+        logger.debug("Setting due date")
+        card.set_due(event.start.strftime(iso_8601))
+        logger.debug("Setting custom task field")
+        card.set_custom_field(event.id, self.custom_fields["CalendarId"])
 
     def _update_remaining(self, task: Task, card: Card):
         logger.debug("Setting custom remaining field")
@@ -142,8 +165,13 @@ class TrelloPersonalBoard(PersonalBoard):
                 card.set_due_complete()
         logger.info("Update complete")
 
+    def _backlog(self) -> TList:
+        logger.debug("Fetching backlog list")
+        return self.board.get_list(self.trello_lists["[Backlog] On Hold"])
+
+    def _template(self, name: str) -> Card:
+        # TODO search card by name and list
+        return self._search_open_cards(f"list:Templates {name}")[0]
+
     def _label(self, name: str) -> Label:
         return next(label for label in self.labels if label.name == name)
-
-    def _bot_comment(self, message: str) -> str:
-        return f"BOT {message}"

@@ -20,35 +20,15 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 
-from typing import List
+# coding=utf-8
 
-from jotfiles.model import CalendarEvent, Task
+import logging
+from subprocess import PIPE, STDOUT, Popen
 
-
-class Calendar:
-    # TODO add list type
-    def list_week_events(self) -> List[CalendarEvent]:
-        pass
+logger = logging.getLogger(__name__)
 
 
-class PersonalBoard:
-    def upsert_task_card(self, task: Task):
-        pass
-
-    def upsert_calendar_card(self, event: CalendarEvent):
-        pass
-
-    def update_done(self):
-        pass
-
-
-# TODO change name
-class Workflow:
-    def update_sprint_issues(self):
-        pass
-
-    def send_scheduled_messages(self):
-        pass
-
-    def update_events(self):
-        pass
+def run_bash(*cmd_tokens) -> Popen:
+    command = " ".join(cmd_tokens)
+    logger.debug("Command: %s", command)
+    return Popen(command, shell=True, stdout=PIPE, stderr=STDOUT, close_fds=False)
